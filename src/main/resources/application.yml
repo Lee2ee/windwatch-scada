@@ -3,7 +3,7 @@ spring:
     name: WindWatch SCADA
 
   datasource:
-    url: jdbc:h2:mem:scadadb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;NON_KEYWORDS=VALUE
+    url: jdbc:h2:file:./data/scadadb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;NON_KEYWORDS=VALUE;AUTO_SERVER=TRUE
     driver-class-name: org.h2.Driver
     username: sa
     password:
