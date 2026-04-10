@@ -122,6 +122,12 @@
                     </li>
                     <li><hr class="dropdown-divider border-secondary"></li>
                     <li>
+                        <a th:href="@{/account}" class="dropdown-item">
+                            <i class="bi bi-person-gear me-2"></i>내 계정
+                        </a>
+                    </li>
+                    <li><hr class="dropdown-divider border-secondary"></li>
+                    <li>
                         <form th:action="@{/logout}" method="post">
                             <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
                             <button type="submit" class="dropdown-item text-danger">

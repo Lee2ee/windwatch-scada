@@ -13,6 +13,11 @@ public interface TurbineDataRepository extends JpaRepository<TurbineData, Long> 
     List<TurbineData> findByTurbineIdAndRecordedAtBetween(String turbineId, LocalDateTime from, LocalDateTime to);
 
     @org.springframework.data.jpa.repository.Query(
+        "SELECT COALESCE(SUM(d.powerOutput), 0.0) FROM TurbineData d WHERE d.recordedAt >= :startOfDay")
+    Double sumPowerOutputSince(
+        @org.springframework.data.repository.query.Param("startOfDay") LocalDateTime startOfDay);
+
+    @org.springframework.data.jpa.repository.Query(
         "SELECT DISTINCT d.turbineId FROM TurbineData d WHERE d.recordedAt BETWEEN :from AND :to")
     List<String> findDistinctTurbineIdsByRecordedAtBetween(
         @org.springframework.data.repository.query.Param("from") LocalDateTime from,

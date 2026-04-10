@@ -25,6 +25,7 @@ public class DashboardController {
         model.addAttribute("totalTurbines", summary.get("totalTurbines"));
         model.addAttribute("activeAlarms", summary.get("activeAlarms"));
         model.addAttribute("turbineIds", summary.get("turbineIds"));
+        model.addAttribute("todayEnergyKwh", summary.get("todayEnergyKwh"));
         model.addAttribute("activeEvents", eventService.getActiveAlarms());
         model.addAttribute("pageTitle", "실시간 대시보드");
         model.addAttribute("activePage", "dashboard");

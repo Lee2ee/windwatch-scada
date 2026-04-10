@@ -5,6 +5,9 @@ import com.windwatch.scada.service.AdminTurbineService;
 import com.windwatch.scada.service.AdminUserService;
 import com.windwatch.scada.service.BatchReportService;
 import lombok.RequiredArgsConstructor;
+import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.ss.util.CellRangeAddress;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.batch.core.JobExecution;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -13,6 +16,8 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
@@ -146,8 +151,86 @@ public class AdminController {
     @GetMapping("/reports/{id}/detail")
     @ResponseBody
     public ResponseEntity<List<BatchReport>> reportDetail(@PathVariable Long id) {
-        // id 로부터 date+type 을 찾아 상세 목록 반환
         return batchReportRepository(id);
+    }
+
+    @GetMapping("/reports/download/{id}")
+    public void downloadReport(@PathVariable Long id, HttpServletResponse response) throws IOException {
+        BatchReport summary = batchReportService.getRecentReports().stream()
+                .filter(r -> r.getId().equals(id))
+                .findFirst()
+                .orElse(null);
+        if (summary == null) {
+            response.sendError(HttpServletResponse.SC_NOT_FOUND);
+            return;
+        }
+        List<BatchReport> details = batchReportService.getDetailReports(summary.getReportDate(), summary.getReportType());
+
+        String filename = "windwatch_report_" + summary.getReportDate() + "_" + summary.getReportType() + ".xlsx";
+        response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        response.setHeader("Content-Disposition", "attachment; filename=" + filename);
+
+        try (Workbook wb = new XSSFWorkbook()) {
+            CellStyle headerStyle = wb.createCellStyle();
+            Font headerFont = wb.createFont();
+            headerFont.setBold(true);
+            headerStyle.setFont(headerFont);
+            headerStyle.setFillForegroundColor(IndexedColors.ROYAL_BLUE.getIndex());
+            headerStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+            headerStyle.setAlignment(HorizontalAlignment.CENTER);
+
+            // ── 요약 시트 ──
+            Sheet summarySheet = wb.createSheet("요약");
+            String[] sumHeaders = {"리포트일", "유형", "총터빈", "평균출력(kW)", "최대출력(kW)",
+                    "총발전량(kWh)", "평균풍속(m/s)", "평균기어온도(°C)", "가용률(%)", "CRITICAL", "WARNING"};
+            Row sh = summarySheet.createRow(0);
+            for (int i = 0; i < sumHeaders.length; i++) {
+                Cell c = sh.createCell(i);
+                c.setCellValue(sumHeaders[i]);
+                c.setCellStyle(headerStyle);
+            }
+            Row sr = summarySheet.createRow(1);
+            sr.createCell(0).setCellValue(summary.getReportDate().toString());
+            sr.createCell(1).setCellValue(summary.getReportType());
+            sr.createCell(2).setCellValue(summary.getTotalTurbines() != null ? summary.getTotalTurbines() : 0);
+            sr.createCell(3).setCellValue(summary.getAvgPowerKw() != null ? summary.getAvgPowerKw() : 0);
+            sr.createCell(4).setCellValue(summary.getMaxPowerKw() != null ? summary.getMaxPowerKw() : 0);
+            sr.createCell(5).setCellValue(summary.getTotalEnergyKwh() != null ? summary.getTotalEnergyKwh() : 0);
+            sr.createCell(6).setCellValue(summary.getAvgWindSpeed() != null ? summary.getAvgWindSpeed() : 0);
+            sr.createCell(7).setCellValue(summary.getAvgGearboxTemp() != null ? summary.getAvgGearboxTemp() : 0);
+            sr.createCell(8).setCellValue(summary.getAvailabilityPct() != null ? summary.getAvailabilityPct() : 0);
+            sr.createCell(9).setCellValue(summary.getCriticalEvents() != null ? summary.getCriticalEvents() : 0);
+            sr.createCell(10).setCellValue(summary.getWarningEvents() != null ? summary.getWarningEvents() : 0);
+            for (int i = 0; i < sumHeaders.length; i++) summarySheet.autoSizeColumn(i);
+
+            // ── 터빈별 상세 시트 ──
+            Sheet detailSheet = wb.createSheet("터빈별 상세");
+            String[] detHeaders = {"터빈ID", "평균출력(kW)", "최대출력(kW)", "총발전량(kWh)",
+                    "평균풍속(m/s)", "평균기어온도(°C)", "가용률(%)", "CRITICAL", "WARNING"};
+            Row dh = detailSheet.createRow(0);
+            for (int i = 0; i < detHeaders.length; i++) {
+                Cell c = dh.createCell(i);
+                c.setCellValue(detHeaders[i]);
+                c.setCellStyle(headerStyle);
+            }
+            int rowIdx = 1;
+            for (BatchReport d : details) {
+                if (d.getTurbineId() == null) continue;
+                Row dr = detailSheet.createRow(rowIdx++);
+                dr.createCell(0).setCellValue(d.getTurbineId());
+                dr.createCell(1).setCellValue(d.getAvgPowerKw() != null ? d.getAvgPowerKw() : 0);
+                dr.createCell(2).setCellValue(d.getMaxPowerKw() != null ? d.getMaxPowerKw() : 0);
+                dr.createCell(3).setCellValue(d.getTotalEnergyKwh() != null ? d.getTotalEnergyKwh() : 0);
+                dr.createCell(4).setCellValue(d.getAvgWindSpeed() != null ? d.getAvgWindSpeed() : 0);
+                dr.createCell(5).setCellValue(d.getAvgGearboxTemp() != null ? d.getAvgGearboxTemp() : 0);
+                dr.createCell(6).setCellValue(d.getAvailabilityPct() != null ? d.getAvailabilityPct() : 0);
+                dr.createCell(7).setCellValue(d.getCriticalEvents() != null ? d.getCriticalEvents() : 0);
+                dr.createCell(8).setCellValue(d.getWarningEvents() != null ? d.getWarningEvents() : 0);
+            }
+            for (int i = 0; i < detHeaders.length; i++) detailSheet.autoSizeColumn(i);
+
+            wb.write(response.getOutputStream());
+        }
     }
 
     @PostMapping("/reports/run")

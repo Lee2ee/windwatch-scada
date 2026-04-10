@@ -283,10 +283,16 @@ public class TurbineService {
     public Map<String, Object> getDashboardSummary() {
         List<Turbine> active = getActiveTurbines();
         long activeAlarms = scadaEventRepository.countByStatus("ACTIVE");
+
+        java.time.LocalDateTime startOfDay = java.time.LocalDate.now().atStartOfDay();
+        Double sumPower = turbineDataRepository.sumPowerOutputSince(startOfDay);
+        double todayEnergyKwh = (sumPower != null ? sumPower / 1800.0 : 0.0);
+
         Map<String, Object> summary = new HashMap<>();
         summary.put("totalTurbines", active.size());
         summary.put("activeAlarms", activeAlarms);
         summary.put("turbineIds", active.stream().map(Turbine::getTurbineId).toList());
+        summary.put("todayEnergyKwh", Math.round(todayEnergyKwh * 10.0) / 10.0);
         return summary;
     }
 

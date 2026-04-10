@@ -23,7 +23,7 @@
 
     <!-- KPI Cards -->
     <div class="row g-3 mb-4">
-        <div class="col-xl-3 col-md-6">
+        <div class="col-xl col-md-6">
             <div class="ww-kpi-card">
                 <div class="ww-kpi-icon bg-primary-subtle">
                     <i class="bi bi-wind text-primary"></i>
@@ -37,7 +37,7 @@
                 </div>
             </div>
         </div>
-        <div class="col-xl-3 col-md-6">
+        <div class="col-xl col-md-6">
             <div class="ww-kpi-card">
                 <div class="ww-kpi-icon bg-success-subtle">
                     <i class="bi bi-check-circle text-success"></i>
@@ -51,7 +51,7 @@
                 </div>
             </div>
         </div>
-        <div class="col-xl-3 col-md-6">
+        <div class="col-xl col-md-6">
             <div class="ww-kpi-card">
                 <div class="ww-kpi-icon bg-danger-subtle">
                     <i class="bi bi-bell-fill text-danger"></i>
@@ -65,7 +65,7 @@
                 </div>
             </div>
         </div>
-        <div class="col-xl-3 col-md-6">
+        <div class="col-xl col-md-6">
             <div class="ww-kpi-card">
                 <div class="ww-kpi-icon bg-warning-subtle">
                     <i class="bi bi-thermometer-half text-warning"></i>
@@ -75,6 +75,21 @@
                     <div class="ww-kpi-label">평균 기어박스 온도 (°C)</div>
                     <div class="ww-kpi-trend">
                         <span class="text-muted small">임계치: 85°C</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl col-md-6">
+            <div class="ww-kpi-card">
+                <div class="ww-kpi-icon bg-info-subtle">
+                    <i class="bi bi-lightning-charge-fill text-info"></i>
+                </div>
+                <div class="ww-kpi-body">
+                    <div class="ww-kpi-value text-info"
+                         th:text="${todayEnergyKwh != null} ? ${#numbers.formatDecimal(todayEnergyKwh, 1, 1)} : '--'">--</div>
+                    <div class="ww-kpi-label">오늘 발전량 (kWh)</div>
+                    <div class="ww-kpi-trend">
+                        <a th:href="@{/admin/reports}" class="text-primary text-decoration-none small">리포트 보기 &rarr;</a>
                     </div>
                 </div>
             </div>
