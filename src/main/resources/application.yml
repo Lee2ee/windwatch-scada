@@ -1,0 +1,85 @@
+spring:
+  application:
+    name: WindWatch SCADA
+
+  datasource:
+    url: jdbc:h2:mem:scadadb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;NON_KEYWORDS=VALUE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: false
+    defer-datasource-initialization: true
+    open-in-view: false
+
+  sql:
+    init:
+      mode: always
+
+  batch:
+    jdbc:
+      initialize-schema: always
+    job:
+      enabled: false   # 애플리케이션 시작 시 자동 실행 방지 (스케줄러가 트리거)
+
+  # Redis (개발환경에서 없으면 자동 폴백)
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: 2000ms
+      connect-timeout: 1000ms
+
+  cache:
+    type: redis
+    redis:
+      time-to-live: 10000  # 10초 (터빈 캐시 TTL과 맞춤)
+      cache-null-values: false
+
+  # Jackson LocalDateTime 직렬화
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+    time-zone: Asia/Seoul
+
+windwatch:
+  python:
+    auto-start: true   # false 로 설정하면 Python 서비스 자동 실행 안 함
+  ai:
+    local:
+      vision-url: http://localhost:8001/api/vision/detect
+      llm-url: http://localhost:8002/api/llm/ask
+    cloud:
+      vision-url: https://vision.googleapis.com/v1/images:annotate
+      openai-url: https://api.openai.com/v1/chat/completions
+      openai-api-key: ${OPENAI_API_KEY:}
+  weather:
+    crawler-url: http://localhost:8003/api/weather/current
+    update-interval-ms: 300000   # 5분마다 갱신
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+
+logging:
+  charset:
+    console: UTF-8
+    file: UTF-8
+  level:
+    com.windwatch: DEBUG
+    org.springframework.security: WARN
+    org.springframework.batch: INFO
+    org.springframework.data.redis: WARN

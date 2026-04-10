@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+      th:replace="~{layout/base :: layout(~{::title}, ~{::section})}">
+<head>
+    <title th:text="${pageTitle}">터빈 관리</title>
+</head>
+<body>
+<section>
+    <div class="ww-page-header">
+        <div>
+            <h2 class="ww-page-title">
+                <i class="bi bi-wind me-2 text-primary"></i>터빈 관리
+            </h2>
+            <p class="ww-page-subtitle">모니터링 대상 풍력 터빈 등록 / 활성화 / 삭제 (관리자 전용)</p>
+        </div>
+        <a th:href="@{/dashboard}" class="btn ww-btn-outline-primary">
+            <i class="bi bi-speedometer2 me-1"></i>대시보드
+        </a>
+    </div>
+
+    <!-- Flash Messages -->
+    <div class="alert alert-success d-flex align-items-center gap-2 mb-4" th:if="${successMsg}" role="alert">
+        <i class="bi bi-check-circle-fill"></i><span th:text="${successMsg}"></span>
+    </div>
+    <div class="alert alert-danger d-flex align-items-center gap-2 mb-4" th:if="${errorMsg}" role="alert">
+        <i class="bi bi-exclamation-triangle-fill"></i><span th:text="${errorMsg}"></span>
+    </div>
+
+    <div class="row g-4">
+        <!-- Turbine List -->
+        <div class="col-lg-8">
+            <div class="ww-card">
+                <div class="ww-card-header">
+                    <span><i class="bi bi-list-ul me-2 text-primary"></i>터빈 목록</span>
+                    <span class="badge bg-secondary" th:text="${turbines.size() + '기'}">0기</span>
+                </div>
+                <div class="ww-card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table ww-table mb-0">
+                            <thead>
+                                <tr>
+                                    <th>터빈 ID</th>
+                                    <th>이름</th>
+                                    <th>위치</th>
+                                    <th>정격 (kW)</th>
+                                    <th>설치일</th>
+                                    <th>상태</th>
+                                    <th>편집</th>
+                                    <th>삭제</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr th:each="t : ${turbines}"
+                                    th:classappend="${!t.active} ? 'opacity-50' : ''">
+                                    <td>
+                                        <span class="badge bg-dark border border-secondary fw-bold"
+                                              th:text="${t.turbineId}">WT-001</span>
+                                    </td>
+                                    <td class="text-light" th:text="${t.turbineName}">1호기</td>
+                                    <td class="text-muted small" th:text="${t.location ?: '-'}">-</td>
+                                    <td>
+                                        <span class="text-info fw-semibold"
+                                              th:text="${#numbers.formatInteger(t.ratedCapacityKw, 1, 'COMMA')}">2,000</span>
+                                        <small class="text-muted">kW</small>
+                                    </td>
+                                    <td class="text-muted small"
+                                        th:text="${t.installedAt != null ? #temporals.format(t.installedAt,'yyyy-MM-dd') : '-'}">-</td>
+                                    <td>
+                                        <button class="btn btn-xs"
+                                                th:classappend="${t.active} ? 'btn-outline-success' : 'btn-outline-secondary'"
+                                                th:title="${t.active} ? '비활성화 클릭' : '활성화 클릭'"
+                                                th:data-turbine-id="${t.turbineId}"
+                                                th:data-active="${t.active}"
+                                                onclick="toggleTurbine(this.dataset.turbineId, this.dataset.active === 'true')">
+                                            <i class="bi" th:classappend="${t.active} ? 'bi-toggle-on' : 'bi-toggle-off'"></i>
+                                            <span th:text="${t.active} ? '운영 중' : '비활성'"></span>
+                                        </button>
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-xs ww-btn-outline-primary"
+                                                th:data-turbine-id="${t.turbineId}"
+                                                th:data-turbine-name="${t.turbineName}"
+                                                th:data-location="${t.location}"
+                                                th:data-capacity="${t.ratedCapacityKw}"
+                                                onclick="openEditModal(this.dataset.turbineId, this.dataset.turbineName, this.dataset.location, parseFloat(this.dataset.capacity))">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-xs btn-outline-danger"
+                                                th:data-turbine-id="${t.turbineId}"
+                                                th:data-turbine-name="${t.turbineName}"
+                                                onclick="deleteTurbine(this.dataset.turbineId, this.dataset.turbineName)">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                <tr th:if="${#lists.isEmpty(turbines)}">
+                                    <td colspan="8" class="text-center py-5 text-muted">
+                                        <i class="bi bi-wind display-4 d-block mb-3 opacity-25"></i>
+                                        등록된 터빈이 없습니다
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Info Card -->
+            <div class="ww-card mt-3">
+                <div class="ww-card-body">
+                    <div class="row g-3 text-center">
+                        <div class="col-4">
+                            <div class="fs-3 fw-bold text-primary"
+                                 th:text="${turbines.size()}">0</div>
+                            <div class="text-muted small">전체 터빈</div>
+                        </div>
+                        <div class="col-4">
+                            <div class="fs-3 fw-bold text-success"
+                                 th:text="${turbines.?[active == true].size()}">0</div>
+                            <div class="text-muted small">운영 중</div>
+                        </div>
+                        <div class="col-4">
+                            <div class="fs-3 fw-bold text-secondary"
+                                 th:text="${turbines.?[active == false].size()}">0</div>
+                            <div class="text-muted small">비활성</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Add Turbine Form -->
+        <div class="col-lg-4">
+            <div class="ww-card">
+                <div class="ww-card-header">
+                    <span><i class="bi bi-plus-circle me-2 text-success"></i>신규 터빈 등록</span>
+                </div>
+                <div class="ww-card-body">
+                    <form th:action="@{/admin/turbines/create}" method="post">
+                        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                        <div class="mb-3">
+                            <label class="form-label text-muted small">터빈 ID <span class="text-danger">*</span></label>
+                            <input type="text" name="turbineId" class="form-control ww-input"
+                                   placeholder="예: WT-006" pattern="[A-Za-z]{2}-\d{3,}"
+                                   title="영문 2자리-숫자 3자리 이상 (예: WT-006)" required>
+                            <div class="form-text text-muted">영문 2자리-숫자 3자리 이상</div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label text-muted small">터빈 이름 <span class="text-danger">*</span></label>
+                            <input type="text" name="turbineName" class="form-control ww-input"
+                                   placeholder="예: 6호기 (북동 해상)" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label text-muted small">위치 설명</label>
+                            <input type="text" name="location" class="form-control ww-input"
+                                   placeholder="예: 제주 해상 북동구역 D-1">
+                        </div>
+                        <div class="mb-4">
+                            <label class="form-label text-muted small">정격 용량 (kW) <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <input type="number" name="ratedCapacityKw" class="form-control ww-input"
+                                       value="2000" min="100" max="20000" step="100" required>
+                                <span class="input-group-text" style="background:#21262d; border-color:#30363d; color:#7d8590">kW</span>
+                            </div>
+                            <div class="d-flex gap-1 mt-2 flex-wrap">
+                                <button type="button" class="btn btn-xs ww-btn-ghost" onclick="setCapacity(1500)">1.5 MW</button>
+                                <button type="button" class="btn btn-xs ww-btn-ghost" onclick="setCapacity(2000)">2 MW</button>
+                                <button type="button" class="btn btn-xs ww-btn-ghost" onclick="setCapacity(2500)">2.5 MW</button>
+                                <button type="button" class="btn btn-xs ww-btn-ghost" onclick="setCapacity(5000)">5 MW</button>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn ww-btn-primary w-100">
+                            <i class="bi bi-plus-circle me-2"></i>터빈 등록
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Guide -->
+            <div class="ww-card mt-3">
+                <div class="ww-card-header">
+                    <span><i class="bi bi-info-circle me-2 text-info"></i>운영 안내</span>
+                </div>
+                <div class="ww-card-body">
+                    <ul class="text-muted small ps-3 mb-0" style="line-height:2">
+                        <li>터빈 등록 후 <strong class="text-light">10초 이내</strong> 대시보드에 반영</li>
+                        <li><strong class="text-success">운영 중</strong> 상태의 터빈만 실시간 모니터링</li>
+                        <li><strong class="text-secondary">비활성화</strong>는 임시 제외 (데이터 삭제 없음)</li>
+                        <li>삭제 시 터빈 이력 데이터는 유지됨</li>
+                        <li>ID 형식: 영문 2자리-숫자 (예: WT-006, OF-001)</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Modal -->
+    <div class="modal fade" id="editModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" style="background:#161b22; border:1px solid #30363d;">
+                <div class="modal-header border-secondary">
+                    <h5 class="modal-title text-light">
+                        <i class="bi bi-pencil me-2 text-primary"></i>터빈 정보 수정
+                        <span id="editModalId" class="badge bg-dark border border-secondary ms-2"></span>
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label text-muted small">터빈 이름</label>
+                        <input type="text" id="editName" class="form-control ww-input">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-muted small">위치 설명</label>
+                        <input type="text" id="editLocation" class="form-control ww-input">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-muted small">정격 용량 (kW)</label>
+                        <input type="number" id="editCapacity" class="form-control ww-input" min="100" max="20000" step="100">
+                    </div>
+                </div>
+                <div class="modal-footer border-secondary">
+                    <button type="button" class="btn ww-btn-ghost" data-bs-dismiss="modal">취소</button>
+                    <button type="button" class="btn ww-btn-primary" onclick="submitEdit()">
+                        <i class="bi bi-check2 me-1"></i>수정
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    let editTargetId = null;
+    const editModal = new bootstrap.Modal(document.getElementById('editModal'));
+
+    function setCapacity(val) {
+        document.querySelector('input[name="ratedCapacityKw"]').value = val;
+    }
+
+    function toggleTurbine(id, currentlyActive) {
+        const action = currentlyActive ? '비활성화' : '활성화';
+        if (!confirm(id + ' 터빈을 ' + action + '하겠습니까?')) return;
+        fetch('/admin/turbines/' + id + '/toggle', {
+            method: 'POST',
+            headers: { [getCsrfHeader()]: getCsrfToken() }
+        }).then(r => {
+            if (r.ok) {
+                showToast(id + ' 터빈이 ' + action + '되었습니다.', 'success');
+                setTimeout(() => location.reload(), 1000);
+            } else showToast('변경에 실패했습니다.', 'danger');
+        });
+    }
+
+    function openEditModal(id, name, location, capacity) {
+        editTargetId = id;
+        document.getElementById('editModalId').textContent = id;
+        document.getElementById('editName').value = name;
+        document.getElementById('editLocation').value = location || '';
+        document.getElementById('editCapacity').value = capacity;
+        editModal.show();
+    }
+
+    function submitEdit() {
+        const name = document.getElementById('editName').value.trim();
+        const location = document.getElementById('editLocation').value.trim();
+        const capacity = parseFloat(document.getElementById('editCapacity').value);
+        if (!name) { showToast('터빈 이름은 필수입니다.', 'warning'); return; }
+        if (isNaN(capacity) || capacity < 100) { showToast('유효한 정격 용량을 입력하세요.', 'warning'); return; }
+        fetch('/admin/turbines/' + editTargetId + '/update', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', [getCsrfHeader()]: getCsrfToken() },
+            body: JSON.stringify({ turbineName: name, location, ratedCapacityKw: String(capacity) })
+        }).then(r => r.text()).then(msg => {
+            editModal.hide();
+            showToast(msg, 'success');
+            setTimeout(() => location.reload(), 1000);
+        }).catch(() => showToast('오류가 발생했습니다.', 'danger'));
+    }
+
+    function deleteTurbine(id, name) {
+        if (!confirm(id + ' (' + name + ') 터빈을 삭제하겠습니까?\n\n* 이력 데이터는 유지됩니다.\n* 이 작업은 되돌릴 수 없습니다.')) return;
+        fetch('/admin/turbines/' + id + '/delete', {
+            method: 'POST',
+            headers: { [getCsrfHeader()]: getCsrfToken() }
+        }).then(r => {
+            if (r.ok) {
+                showToast(id + ' 터빈이 삭제되었습니다.', 'success');
+                setTimeout(() => location.reload(), 1200);
+            } else showToast('삭제에 실패했습니다.', 'danger');
+        });
+    }
+    </script>
+</section>
+</body>
+</html>

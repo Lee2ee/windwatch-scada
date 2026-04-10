@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+      th:replace="~{layout/base :: layout(~{::title}, ~{::section})}">
+<head>
+    <title th:text="${pageTitle}">운영 리포트</title>
+</head>
+<body>
+<section>
+    <div class="ww-page-header">
+        <div>
+            <h2 class="ww-page-title">
+                <i class="bi bi-file-earmark-bar-graph me-2 text-primary"></i>운영 리포트
+            </h2>
+            <p class="ww-page-subtitle">Spring Batch 기반 일간/주간/월간 터빈 운영 집계 보고서 (관리자 전용)</p>
+        </div>
+        <a th:href="@{/dashboard}" class="btn ww-btn-outline-primary">
+            <i class="bi bi-speedometer2 me-1"></i>대시보드
+        </a>
+    </div>
+
+    <!-- Flash Messages -->
+    <div class="alert alert-success d-flex align-items-center gap-2 mb-4" th:if="${successMsg}" role="alert">
+        <i class="bi bi-check-circle-fill"></i><span th:text="${successMsg}"></span>
+    </div>
+    <div class="alert alert-danger d-flex align-items-center gap-2 mb-4" th:if="${errorMsg}" role="alert">
+        <i class="bi bi-exclamation-triangle-fill"></i><span th:text="${errorMsg}"></span>
+    </div>
+
+    <div class="row g-4">
+        <!-- Report List -->
+        <div class="col-lg-8">
+            <div class="ww-card">
+                <div class="ww-card-header">
+                    <span><i class="bi bi-table me-2 text-primary"></i>최근 리포트 목록</span>
+                    <span class="badge bg-secondary" th:text="${reports.size() + '건'}">0건</span>
+                </div>
+                <div class="ww-card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table ww-table mb-0">
+                            <thead>
+                                <tr>
+                                    <th>리포트 날짜</th>
+                                    <th>유형</th>
+                                    <th>터빈</th>
+                                    <th>평균 출력 (kW)</th>
+                                    <th>총 발전량 (kWh)</th>
+                                    <th>가동률 (%)</th>
+                                    <th>CRITICAL</th>
+                                    <th>WARNING</th>
+                                    <th>상세</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr th:each="r : ${reports}">
+                                    <td class="text-light fw-semibold"
+                                        th:text="${#temporals.format(r.reportDate, 'yyyy-MM-dd')}">-</td>
+                                    <td>
+                                        <span class="badge"
+                                              th:classappend="${r.reportType == 'DAILY'} ? 'bg-primary' :
+                                                              (${r.reportType == 'WEEKLY'} ? 'bg-info text-dark' : 'bg-warning text-dark')"
+                                              th:text="${r.reportType}">DAILY</span>
+                                    </td>
+                                    <td>
+                                        <span class="text-muted small"
+                                              th:text="${r.turbineId != null ? r.turbineId : '전체 (' + r.totalTurbines + '기)'}">-</span>
+                                    </td>
+                                    <td class="text-info fw-semibold"
+                                        th:text="${r.avgPowerKw != null ? #numbers.formatDecimal(r.avgPowerKw, 1, 1) : '-'}">-</td>
+                                    <td class="text-success"
+                                        th:text="${r.totalEnergyKwh != null ? #numbers.formatDecimal(r.totalEnergyKwh, 1, 1) : '-'}">-</td>
+                                    <td>
+                                        <span th:class="${(r.availabilityPct != null and r.availabilityPct < 80) ? 'text-danger' : 'text-success'}"
+                                              th:text="${r.availabilityPct != null ? #numbers.formatDecimal(r.availabilityPct, 1, 1) + '%' : '-'}">-</span>
+                                    </td>
+                                    <td>
+                                        <span th:if="${r.criticalEvents > 0}" class="badge bg-danger"
+                                              th:text="${r.criticalEvents}">0</span>
+                                        <span th:if="${r.criticalEvents == 0}" class="text-muted small">0</span>
+                                    </td>
+                                    <td>
+                                        <span th:if="${r.warningEvents > 0}" class="badge bg-warning text-dark"
+                                              th:text="${r.warningEvents}">0</span>
+                                        <span th:if="${r.warningEvents == 0}" class="text-muted small">0</span>
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-xs ww-btn-outline-primary"
+                                                th:data-date="${r.reportDate}"
+                                                th:data-type="${r.reportType}"
+                                                onclick="loadDetail(this.dataset.date, this.dataset.type)">
+                                            <i class="bi bi-zoom-in"></i>
+                                        </button>
+                                        <a th:if="${r.filePath != null}"
+                                           th:href="@{/admin/reports/download/__${r.id}__}"
+                                           class="btn btn-xs btn-outline-secondary ms-1"
+                                           title="Excel 다운로드">
+                                            <i class="bi bi-file-earmark-excel"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                <tr th:if="${#lists.isEmpty(reports)}">
+                                    <td colspan="9" class="text-center py-5 text-muted">
+                                        <i class="bi bi-file-earmark-bar-graph display-4 d-block mb-3 opacity-25"></i>
+                                        생성된 리포트가 없습니다.<br>
+                                        <small>오른쪽 폼에서 첫 번째 리포트를 생성하세요.</small>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Detail Panel (동적 로드) -->
+            <div class="ww-card mt-3" id="detailPanel" style="display:none">
+                <div class="ww-card-header">
+                    <span><i class="bi bi-list-columns me-2 text-info"></i>터빈별 상세 내역</span>
+                    <span id="detailTitle" class="text-muted small"></span>
+                </div>
+                <div class="ww-card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table ww-table mb-0" id="detailTable">
+                            <thead>
+                                <tr>
+                                    <th>터빈 ID</th>
+                                    <th>평균 출력</th>
+                                    <th>최대 출력</th>
+                                    <th>총 발전량</th>
+                                    <th>평균 풍속</th>
+                                    <th>기어박스 온도</th>
+                                    <th>가동률</th>
+                                    <th>CRITICAL</th>
+                                    <th>WARNING</th>
+                                </tr>
+                            </thead>
+                            <tbody id="detailBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Control Panel -->
+        <div class="col-lg-4">
+            <!-- Run Job Form -->
+            <div class="ww-card">
+                <div class="ww-card-header">
+                    <span><i class="bi bi-play-circle me-2 text-success"></i>리포트 즉시 생성</span>
+                </div>
+                <div class="ww-card-body">
+                    <form th:action="@{/admin/reports/run}" method="post">
+                        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                        <div class="mb-3">
+                            <label class="form-label text-muted small">리포트 유형 <span class="text-danger">*</span></label>
+                            <select name="reportType" class="form-select ww-input" id="reportTypeSelect"
+                                    onchange="updateDateHint()">
+                                <option value="DAILY">일간 (DAILY) — 특정 1일</option>
+                                <option value="WEEKLY">주간 (WEEKLY) — 7일 (종료일 기준)</option>
+                                <option value="MONTHLY">월간 (MONTHLY) — 해당 월 전체</option>
+                            </select>
+                        </div>
+                        <div class="mb-4">
+                            <label class="form-label text-muted small">기준 날짜 <span class="text-danger">*</span></label>
+                            <input type="date" name="reportDate" id="reportDateInput"
+                                   class="form-control ww-input" required>
+                            <div class="form-text text-muted" id="dateHint">
+                                집계할 날짜를 선택하세요.
+                            </div>
+                        </div>
+                        <button type="submit" class="btn ww-btn-primary w-100">
+                            <i class="bi bi-lightning-fill me-2"></i>리포트 생성
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Schedule Guide -->
+            <div class="ww-card mt-3">
+                <div class="ww-card-header">
+                    <span><i class="bi bi-clock me-2 text-info"></i>자동 실행 스케줄</span>
+                </div>
+                <div class="ww-card-body">
+                    <ul class="list-unstyled mb-0" style="line-height:2.2">
+                        <li>
+                            <span class="badge bg-primary me-2">DAILY</span>
+                            <span class="text-muted small">매일 <strong class="text-light">00:00</strong> — 전일 집계</span>
+                        </li>
+                        <li>
+                            <span class="badge bg-info text-dark me-2">WEEKLY</span>
+                            <span class="text-muted small">매주 월요일 <strong class="text-light">00:05</strong> — 전주 집계</span>
+                        </li>
+                        <li>
+                            <span class="badge bg-warning text-dark me-2">MONTHLY</span>
+                            <span class="text-muted small">매월 1일 <strong class="text-light">00:10</strong> — 전월 집계</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Batch Architecture Note -->
+            <div class="ww-card mt-3">
+                <div class="ww-card-header">
+                    <span><i class="bi bi-gear-wide me-2 text-warning"></i>배치 아키텍처</span>
+                </div>
+                <div class="ww-card-body">
+                    <ul class="text-muted small ps-3 mb-0" style="line-height:2">
+                        <li><strong class="text-light">Job:</strong> dailyReportJob</li>
+                        <li><strong class="text-light">Step:</strong> dailyReportStep (Tasklet)</li>
+                        <li>터빈별 개별 리포트 + 전체 요약 저장</li>
+                        <li>Excel (.xlsx) 파일 자동 생성</li>
+                        <li>중복 실행 시 기존 리포트 갱신</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    // 날짜 초기값: 오늘 (H2 in-memory DB는 현재 세션 데이터만 보유)
+    (function() {
+        const today = new Date();
+        document.getElementById('reportDateInput').value =
+            today.toISOString().split('T')[0];
+        updateDateHint();
+    })();
+
+    function updateDateHint() {
+        const type = document.getElementById('reportTypeSelect').value;
+        const hints = {
+            DAILY:   '집계 대상: 선택한 날짜 하루 (00:00~23:59)',
+            WEEKLY:  '집계 대상: 선택한 날짜 포함 직전 7일',
+            MONTHLY: '집계 대상: 선택한 날짜가 속한 달 전체'
+        };
+        document.getElementById('dateHint').textContent = hints[type] || '';
+    }
+
+    function loadDetail(date, type) {
+        fetch('/admin/reports/detail?reportDate=' + date + '&reportType=' + type, {
+            headers: { [getCsrfHeader()]: getCsrfToken() }
+        })
+        .then(r => r.json())
+        .then(data => {
+            const tbody = document.getElementById('detailBody');
+            tbody.innerHTML = '';
+            const turbineRows = data.filter(r => r.turbineId !== null);
+            if (turbineRows.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-3">상세 데이터 없음</td></tr>';
+            } else {
+                turbineRows.forEach(r => {
+                    const availClass = (r.availabilityPct != null && r.availabilityPct < 80) ? 'text-danger' : 'text-success';
+                    tbody.innerHTML += `<tr>
+                        <td><span class="badge bg-dark border border-secondary">${r.turbineId}</span></td>
+                        <td class="text-info">${r.avgPowerKw != null ? r.avgPowerKw.toFixed(1) : '-'} kW</td>
+                        <td class="text-light">${r.maxPowerKw != null ? r.maxPowerKw.toFixed(1) : '-'} kW</td>
+                        <td class="text-success">${r.totalEnergyKwh != null ? r.totalEnergyKwh.toFixed(1) : '-'} kWh</td>
+                        <td>${r.avgWindSpeed != null ? r.avgWindSpeed.toFixed(1) : '-'} m/s</td>
+                        <td>${r.avgGearboxTemp != null ? r.avgGearboxTemp.toFixed(1) : '-'}°C</td>
+                        <td><span class="${availClass}">${r.availabilityPct != null ? r.availabilityPct.toFixed(1) : '-'}%</span></td>
+                        <td>${r.criticalEvents > 0 ? '<span class="badge bg-danger">' + r.criticalEvents + '</span>' : '<span class="text-muted">0</span>'}</td>
+                        <td>${r.warningEvents > 0 ? '<span class="badge bg-warning text-dark">' + r.warningEvents + '</span>' : '<span class="text-muted">0</span>'}</td>
+                    </tr>`;
+                });
+            }
+            document.getElementById('detailTitle').textContent = type + ' — ' + date;
+            document.getElementById('detailPanel').style.display = '';
+            document.getElementById('detailPanel').scrollIntoView({ behavior: 'smooth' });
+        })
+        .catch(() => showToast('상세 데이터를 불러오지 못했습니다.', 'danger'));
+    }
+    </script>
+</section>
+</body>
+</html>

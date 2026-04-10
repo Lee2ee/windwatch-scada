@@ -1,0 +1,88 @@
+# ===== Java / Maven =====
+target/
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+*.zip
+*.tar.gz
+*.rar
+hs_err_pid*
+replay_pid*
+
+# Maven wrapper
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+# ===== Spring Boot =====
+application-prod.yml
+application-local.yml
+application-secret.yml
+
+# ===== Python =====
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
+.Python
+pip-log.txt
+pip-delete-this-directory.txt
+.eggs/
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Python AI model weights (large binary files)
+python/vision/weights/*.pt
+python/vision/weights/*.onnx
+python/vision/weights/*.engine
+
+# ===== Environment & Secrets =====
+.env
+.env.*
+*.env
+secrets.yml
+secrets.yaml
+credentials.json
+service-account*.json
+
+# ===== IDE =====
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+*.swp
+*.swo
+*~
+
+# ===== OS =====
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ===== Logs =====
+logs/
+*.log
+*.log.*
+
+# ===== H2 Database =====
+*.db
+*.mv.db
+*.trace.db
+
+# ===== Redis =====
+dump.rdb
+
+# ===== Markdown (README.md 제외) =====
+*.md
+!README.md
+
+# ===== Build & Runtime =====
+.claude/

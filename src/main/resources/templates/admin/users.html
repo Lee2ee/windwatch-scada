@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+      th:replace="~{layout/base :: layout(~{::title}, ~{::section})}">
+<head>
+    <title th:text="${pageTitle}">사용자 관리</title>
+</head>
+<body>
+<section>
+    <div class="ww-page-header">
+        <div>
+            <h2 class="ww-page-title">
+                <i class="bi bi-people me-2 text-primary"></i>사용자 관리
+            </h2>
+            <p class="ww-page-subtitle">시스템 접근 계정 관리 (관리자 전용)</p>
+        </div>
+    </div>
+
+    <!-- Flash Messages -->
+    <div class="alert alert-success d-flex align-items-center gap-2 mb-4" th:if="${successMsg}" role="alert">
+        <i class="bi bi-check-circle-fill"></i>
+        <span th:text="${successMsg}"></span>
+    </div>
+    <div class="alert alert-danger d-flex align-items-center gap-2 mb-4" th:if="${errorMsg}" role="alert">
+        <i class="bi bi-exclamation-triangle-fill"></i>
+        <span th:text="${errorMsg}"></span>
+    </div>
+
+    <div class="row g-4">
+        <!-- User List -->
+        <div class="col-lg-8">
+            <div class="ww-card">
+                <div class="ww-card-header">
+                    <span><i class="bi bi-list-ul me-2 text-primary"></i>사용자 목록</span>
+                    <span class="badge bg-secondary" th:text="${users.size() + '명'}">0명</span>
+                </div>
+                <div class="ww-card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table ww-table mb-0">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>사용자명</th>
+                                    <th>이메일</th>
+                                    <th>권한</th>
+                                    <th>비밀번호 변경</th>
+                                    <th>삭제</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr th:each="user : ${users}">
+                                    <td class="text-muted small" th:text="${user.id}">1</td>
+                                    <td>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <i class="bi bi-person-circle text-muted"></i>
+                                            <strong th:text="${user.username}">admin</strong>
+                                        </div>
+                                    </td>
+                                    <td class="text-muted small" th:text="${user.email ?: '-'}">-</td>
+                                    <td>
+                                        <span th:switch="${user.role}">
+                                            <span th:case="'ROLE_ADMIN'" class="badge bg-danger">ADMIN</span>
+                                            <span th:case="'ROLE_OPERATOR'" class="badge bg-warning text-dark">OPERATOR</span>
+                                            <span th:case="*" class="badge bg-secondary">VIEWER</span>
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-xs ww-btn-outline-primary"
+                                                th:data-user-id="${user.id}"
+                                                th:data-username="${user.username}"
+                                                onclick="openPwdModal(this.dataset.userId, this.dataset.username)"
+                                                title="비밀번호 변경">
+                                            <i class="bi bi-key me-1"></i>변경
+                                        </button>
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-xs btn-outline-danger"
+                                                th:data-user-id="${user.id}"
+                                                th:data-username="${user.username}"
+                                                onclick="deleteUser(this.dataset.userId, this.dataset.username)"
+                                                th:disabled="${user.username == 'admin'}"
+                                                title="삭제">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Create User Form -->
+        <div class="col-lg-4">
+            <div class="ww-card">
+                <div class="ww-card-header">
+                    <span><i class="bi bi-person-plus me-2 text-success"></i>신규 사용자 추가</span>
+                </div>
+                <div class="ww-card-body">
+                    <form th:action="@{/admin/users/create}" method="post">
+                        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                        <div class="mb-3">
+                            <label class="form-label text-muted small">사용자 ID *</label>
+                            <input type="text" name="username" class="form-control ww-input"
+                                   placeholder="영문/숫자, 4자 이상" required minlength="4">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label text-muted small">비밀번호 *</label>
+                            <input type="password" name="password" class="form-control ww-input"
+                                   placeholder="4자 이상" required minlength="4">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label text-muted small">권한 *</label>
+                            <select name="role" class="form-select ww-select" required>
+                                <option value="ADMIN">ADMIN (관리자)</option>
+                                <option value="OPERATOR" selected>OPERATOR (운영자)</option>
+                                <option value="VIEWER">VIEWER (조회자)</option>
+                            </select>
+                        </div>
+                        <div class="mb-4">
+                            <label class="form-label text-muted small">이메일</label>
+                            <input type="email" name="email" class="form-control ww-input"
+                                   placeholder="선택입력">
+                        </div>
+                        <button type="submit" class="btn ww-btn-primary w-100">
+                            <i class="bi bi-person-plus me-2"></i>사용자 생성
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Role Guide -->
+            <div class="ww-card mt-3">
+                <div class="ww-card-header">
+                    <span><i class="bi bi-shield me-2 text-warning"></i>권한 안내</span>
+                </div>
+                <div class="ww-card-body">
+                    <div class="mb-2">
+                        <span class="badge bg-danger me-2">ADMIN</span>
+                        <small class="text-muted">모든 기능 + 사용자 관리</small>
+                    </div>
+                    <div class="mb-2">
+                        <span class="badge bg-warning text-dark me-2">OPERATOR</span>
+                        <small class="text-muted">알람 확인/해결, AI 분석</small>
+                    </div>
+                    <div>
+                        <span class="badge bg-secondary me-2">VIEWER</span>
+                        <small class="text-muted">모니터링 조회만 가능</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Password Change Modal -->
+    <div class="modal fade" id="pwdModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" style="background:#161b22; border:1px solid #30363d;">
+                <div class="modal-header border-secondary">
+                    <h5 class="modal-title text-light">
+                        <i class="bi bi-key me-2 text-warning"></i>비밀번호 변경
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted small">대상: <strong id="pwdModalUsername" class="text-light">-</strong></p>
+                    <div class="mb-3">
+                        <label class="form-label text-muted small">새 비밀번호</label>
+                        <input type="password" id="newPassword" class="form-control ww-input"
+                               placeholder="4자 이상 입력" minlength="4">
+                    </div>
+                    <div>
+                        <label class="form-label text-muted small">비밀번호 확인</label>
+                        <input type="password" id="confirmPassword" class="form-control ww-input"
+                               placeholder="동일한 비밀번호 재입력">
+                    </div>
+                </div>
+                <div class="modal-footer border-secondary">
+                    <button type="button" class="btn ww-btn-ghost" data-bs-dismiss="modal">취소</button>
+                    <button type="button" class="btn ww-btn-primary" onclick="submitPwdChange()">
+                        <i class="bi bi-check2 me-1"></i>변경
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    let pwdTargetId = null;
+    const pwdModal = new bootstrap.Modal(document.getElementById('pwdModal'));
+
+    function openPwdModal(userId, username) {
+        pwdTargetId = userId;
+        document.getElementById('pwdModalUsername').textContent = username;
+        document.getElementById('newPassword').value = '';
+        document.getElementById('confirmPassword').value = '';
+        pwdModal.show();
+    }
+
+    function submitPwdChange() {
+        const pwd = document.getElementById('newPassword').value;
+        const confirm = document.getElementById('confirmPassword').value;
+        if (pwd.length < 4) { showToast('비밀번호는 4자 이상이어야 합니다.', 'warning'); return; }
+        if (pwd !== confirm) { showToast('비밀번호가 일치하지 않습니다.', 'warning'); return; }
+        fetch('/admin/users/' + pwdTargetId + '/change-password', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                [getCsrfHeader()]: getCsrfToken()
+            },
+            body: JSON.stringify({ password: pwd })
+        }).then(r => r.text()).then(msg => {
+            pwdModal.hide();
+            showToast(msg, 'success');
+        }).catch(() => showToast('오류가 발생했습니다.', 'danger'));
+    }
+
+    function deleteUser(id, username) {
+        if (!confirm(username + ' 사용자를 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.')) return;
+        fetch('/admin/users/' + id + '/delete', {
+            method: 'POST',
+            headers: { [getCsrfHeader()]: getCsrfToken() }
+        }).then(r => {
+            if (r.ok) { showToast(username + ' 사용자가 삭제되었습니다.', 'success'); setTimeout(() => location.reload(), 1200); }
+            else showToast('삭제에 실패했습니다.', 'danger');
+        });
+    }
+    </script>
+</section>
+</body>
+</html>

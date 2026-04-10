@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout/base :: layout(~{::title}, ~{::section})}">
+<head>
+    <title th:text="${pageTitle}">AI 블레이드 검사</title>
+</head>
+<body>
+<section>
+    <div class="ww-page-header">
+        <div>
+            <h2 class="ww-page-title">
+                <i class="bi bi-eye me-2 text-primary"></i>AI 블레이드 결함 탐지
+            </h2>
+            <p class="ww-page-subtitle">YOLOv8 기반 컴퓨터 비전 자동 결함 분류 시스템</p>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Upload Panel -->
+        <div class="col-xl-5">
+            <div class="ww-card">
+                <div class="ww-card-header">
+                    <span><i class="bi bi-upload me-2 text-primary"></i>이미지 업로드</span>
+                </div>
+                <div class="ww-card-body">
+                    <!-- AI Model Selection -->
+                    <div class="mb-4">
+                        <label class="form-label text-muted small fw-semibold">AI 모델 선택</label>
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <input type="radio" class="btn-check" name="modelType" id="modelLocal" value="LOCAL" checked>
+                                <label class="btn ww-model-btn w-100" for="modelLocal">
+                                    <i class="bi bi-server d-block mb-1 fs-5"></i>
+                                    <span class="fw-semibold">Local YOLOv8</span>
+                                    <small class="d-block text-muted">보안 / 오프라인</small>
+                                </label>
+                            </div>
+                            <div class="col-6">
+                                <input type="radio" class="btn-check" name="modelType" id="modelCloud" value="CLOUD">
+                                <label class="btn ww-model-btn w-100" for="modelCloud">
+                                    <i class="bi bi-cloud d-block mb-1 fs-5"></i>
+                                    <span class="fw-semibold">Cloud AI</span>
+                                    <small class="d-block text-muted">GPT-4V / 고정밀</small>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Drop Zone -->
+                    <div class="ww-dropzone" id="dropzone"
+                         ondragover="handleDragOver(event)"
+                         ondragleave="handleDragLeave(event)"
+                         ondrop="handleDrop(event)"
+                         onclick="document.getElementById('fileInput').click()">
+                        <div id="dropzoneContent">
+                            <i class="bi bi-cloud-arrow-up display-4 text-primary mb-3 d-block"></i>
+                            <p class="mb-1 fw-semibold" style="color:#e6edf3">이미지를 드래그하거나 클릭하여 업로드</p>
+                            <p class="text-muted small mb-0">PNG, JPG, JPEG, WEBP 지원 | 최대 10MB</p>
+                        </div>
+                        <input type="file" id="fileInput" class="d-none" accept="image/*" onchange="handleFileSelect(event)">
+                    </div>
+
+                    <!-- Image Preview -->
+                    <div id="previewSection" class="mt-3 d-none">
+                        <div class="position-relative">
+                            <img id="previewImage" src="" alt="Preview" class="img-fluid rounded ww-preview-img">
+                            <button class="btn btn-sm btn-danger position-absolute top-0 end-0 m-2" onclick="clearImage()">
+                                <i class="bi bi-x-lg"></i>
+                            </button>
+                        </div>
+                        <div class="mt-2 d-flex gap-2">
+                            <span id="fileNameBadge" class="badge bg-secondary text-truncate" style="max-width:200px"></span>
+                            <span id="fileSizeBadge" class="badge bg-dark"></span>
+                        </div>
+                    </div>
+
+                    <!-- Submit Button -->
+                    <button class="btn ww-btn-primary w-100 mt-3" id="analyzeBtn" onclick="analyzeImage()" disabled>
+                        <i class="bi bi-cpu me-2"></i>AI 분석 시작
+                    </button>
+                </div>
+            </div>
+
+            <!-- Defect Guide -->
+            <div class="ww-card mt-3">
+                <div class="ww-card-header">
+                    <span><i class="bi bi-info-circle me-2 text-info"></i>탐지 가능한 결함 유형</span>
+                </div>
+                <div class="ww-card-body p-0">
+                    <div class="ww-defect-list">
+                        <div class="ww-defect-item">
+                            <span class="ww-defect-dot bg-danger"></span>
+                            <div>
+                                <strong class="text-light">blade_crack</strong>
+                                <p class="text-muted small mb-0">블레이드 균열 / 크랙</p>
+                            </div>
+                        </div>
+                        <div class="ww-defect-item">
+                            <span class="ww-defect-dot bg-warning"></span>
+                            <div>
+                                <strong class="text-light">surface_erosion</strong>
+                                <p class="text-muted small mb-0">표면 침식 손상</p>
+                            </div>
+                        </div>
+                        <div class="ww-defect-item">
+                            <span class="ww-defect-dot bg-info"></span>
+                            <div>
+                                <strong class="text-light">lightning_damage</strong>
+                                <p class="text-muted small mb-0">낙뢰 손상</p>
+                            </div>
+                        </div>
+                        <div class="ww-defect-item">
+                            <span class="ww-defect-dot bg-primary"></span>
+                            <div>
+                                <strong class="text-light">leading_edge_erosion</strong>
+                                <p class="text-muted small mb-0">전연부 침식</p>
+                            </div>
+                        </div>
+                        <div class="ww-defect-item">
+                            <span class="ww-defect-dot bg-secondary"></span>
+                            <div>
+                                <strong class="text-light">delamination</strong>
+                                <p class="text-muted small mb-0">복합재료 박리</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Panel -->
+        <div class="col-xl-7">
+            <!-- Loading -->
+            <div id="loadingPanel" class="ww-card d-none">
+                <div class="ww-card-body text-center py-5">
+                    <div class="ww-ai-loader mb-3">
+                        <div class="ww-ai-ring"></div>
+                        <i class="bi bi-cpu ww-ai-icon text-primary"></i>
+                    </div>
+                    <h5 style="color:#e6edf3">AI 모델 분석 중...</h5>
+                    <p class="text-muted" id="loadingMessage">이미지를 처리하고 있습니다</p>
+                    <div class="progress ww-progress mt-3" style="max-width:300px; margin:0 auto">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary" style="width:100%"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Results -->
+            <div id="resultPanel" class="d-none">
+                <!-- Result Summary -->
+                <div class="ww-card mb-3" id="resultSummaryCard">
+                    <div class="ww-card-header" id="resultHeader">
+                        <span id="resultHeaderText">분석 결과</span>
+                        <span id="resultHeaderBadge" class="badge">--</span>
+                    </div>
+                    <div class="ww-card-body">
+                        <div class="row g-3 align-items-center">
+                            <div class="col-md-6">
+                                <div class="ww-result-verdict" id="verdictCard">
+                                    <div id="verdictIcon" class="display-4 mb-2"></div>
+                                    <h4 id="verdictText" class="mb-1"></h4>
+                                    <p id="verdictSubtext" class="text-muted small mb-0"></p>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="row g-2">
+                                    <div class="col-6">
+                                        <div class="ww-stat-box">
+                                            <div class="ww-stat-label">처리 시간</div>
+                                            <div class="ww-stat-value" id="statProcessingTime">--</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="ww-stat-box">
+                                            <div class="ww-stat-label">사용 모델</div>
+                                            <div class="ww-stat-value small" id="statModelUsed">--</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="ww-stat-box">
+                                            <div class="ww-stat-label">탐지 결함 수</div>
+                                            <div class="ww-stat-value" id="statDetectionCount">0</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="ww-stat-box">
+                                            <div class="ww-stat-label">최고 신뢰도</div>
+                                            <div class="ww-stat-value" id="statMaxConfidence">--</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Detections List -->
+                <div class="ww-card" id="detectionsCard">
+                    <div class="ww-card-header">
+                        <span><i class="bi bi-search me-2"></i>탐지 결과 상세</span>
+                    </div>
+                    <div class="ww-card-body">
+                        <div id="noDefectMsg" class="text-center py-4 d-none">
+                            <i class="bi bi-shield-check display-4 text-success d-block mb-3"></i>
+                            <h5 class="text-success">결함 미탐지</h5>
+                            <p class="text-muted">블레이드 상태가 양호합니다. 정기 점검을 계속 유지하세요.</p>
+                        </div>
+                        <div id="detectionsList"></div>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="d-flex gap-2 mt-3">
+                    <button class="btn ww-btn-outline-primary" onclick="clearImage()">
+                        <i class="bi bi-arrow-repeat me-2"></i>새 이미지 분석
+                    </button>
+                    <a th:href="@{/assistant}" class="btn ww-btn-outline-warning">
+                        <i class="bi bi-robot me-2"></i>AI 어시스턴트에게 문의
+                    </a>
+                </div>
+            </div>
+
+            <!-- Initial State -->
+            <div id="initialPanel" class="ww-card">
+                <div class="ww-card-body text-center py-5">
+                    <i class="bi bi-image display-4 text-muted d-block mb-3"></i>
+                    <h5 style="color:#7d8590">이미지를 업로드하여 AI 분석을 시작하세요</h5>
+                    <p class="text-muted small">드론 또는 카메라로 촬영한 블레이드 이미지를 업로드하면<br>AI가 자동으로 결함을 탐지합니다</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script th:src="@{/js/inspection.js}"></script>
+</section>
+</body>
+</html>

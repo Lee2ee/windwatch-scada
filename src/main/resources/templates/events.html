@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+      th:replace="~{layout/base :: layout(~{::title}, ~{::section})}">
+<head>
+    <title th:text="${pageTitle}">알람 이력</title>
+</head>
+<body>
+<section>
+    <div class="ww-page-header">
+        <div>
+            <h2 class="ww-page-title">
+                <i class="bi bi-bell me-2 text-warning"></i>알람 & 운영 이력
+            </h2>
+            <p class="ww-page-subtitle">SCADA 이벤트 로그 / 장애 이력 관리</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a th:href="@{/events/export}" class="btn ww-btn-outline-success">
+                <i class="bi bi-file-earmark-excel me-2"></i>Excel 내보내기
+            </a>
+        </div>
+    </div>
+
+    <!-- Filter Panel -->
+    <div class="ww-card mb-4">
+        <div class="ww-card-header">
+            <span><i class="bi bi-funnel me-2 text-primary"></i>필터</span>
+            <button class="btn btn-sm ww-btn-ghost" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse">
+                <i class="bi bi-chevron-down"></i>
+            </button>
+        </div>
+        <div class="collapse show" id="filterCollapse">
+            <div class="ww-card-body">
+                <form th:action="@{/events}" method="get" id="filterForm">
+                    <div class="row g-3">
+                        <div class="col-md-2">
+                            <label class="form-label text-muted small">터빈 ID</label>
+                            <select name="turbineId" class="form-select ww-select">
+                                <option value="">전체</option>
+                                <option th:each="tid : ${turbineIds}" th:value="${tid}" th:text="${tid}"
+                                        th:selected="${tid == currentTurbineId}">WT-001</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label text-muted small">심각도</label>
+                            <select name="severity" class="form-select ww-select">
+                                <option value="">전체</option>
+                                <option value="CRITICAL" th:selected="${currentSeverity == 'CRITICAL'}">CRITICAL</option>
+                                <option value="HIGH" th:selected="${currentSeverity == 'HIGH'}">HIGH</option>
+                                <option value="MEDIUM" th:selected="${currentSeverity == 'MEDIUM'}">MEDIUM</option>
+                                <option value="LOW" th:selected="${currentSeverity == 'LOW'}">LOW</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label text-muted small">상태</label>
+                            <select name="status" class="form-select ww-select">
+                                <option value="">전체</option>
+                                <option value="ACTIVE" th:selected="${currentStatus == 'ACTIVE'}">ACTIVE</option>
+                                <option value="ACKNOWLEDGED" th:selected="${currentStatus == 'ACKNOWLEDGED'}">ACKNOWLEDGED</option>
+                                <option value="RESOLVED" th:selected="${currentStatus == 'RESOLVED'}">RESOLVED</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label text-muted small">시작일</label>
+                            <input type="date" name="from" class="form-control ww-input" th:value="${currentFrom}">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label text-muted small">종료일</label>
+                            <input type="date" name="to" class="form-control ww-input" th:value="${currentTo}">
+                        </div>
+                        <div class="col-md-2 d-flex align-items-end gap-2">
+                            <button type="submit" class="btn ww-btn-primary flex-fill">
+                                <i class="bi bi-search me-1"></i>검색
+                            </button>
+                            <a th:href="@{/events}" class="btn ww-btn-ghost">
+                                <i class="bi bi-arrow-counterclockwise"></i>
+                            </a>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Events Table -->
+    <div class="ww-card">
+        <div class="ww-card-header">
+            <span>
+                <i class="bi bi-table me-2"></i>이벤트 목록
+                <span class="badge bg-secondary ms-2" th:text="${eventPage.totalElements + '건'}">0건</span>
+            </span>
+        </div>
+        <div class="ww-card-body p-0">
+            <div class="table-responsive">
+                <table class="table ww-table mb-0">
+                    <thead>
+                        <tr>
+                            <th width="60">ID</th>
+                            <th width="90">터빈</th>
+                            <th width="80">유형</th>
+                            <th width="100">심각도</th>
+                            <th>메시지</th>
+                            <th width="100">파라미터</th>
+                            <th width="80">값</th>
+                            <th width="110">상태</th>
+                            <th width="140">발생시간</th>
+                            <th width="100" sec:authorize="hasAnyRole('ADMIN','OPERATOR')">조치</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr th:each="event : ${events}"
+                            th:classappend="${event.severity == 'CRITICAL' and event.status == 'ACTIVE'} ? 'ww-row-critical' :
+                                           (${event.severity == 'HIGH' and event.status == 'ACTIVE'} ? 'ww-row-warning' : '')">
+                            <td class="text-muted small" th:text="${event.id}">1</td>
+                            <td>
+                                <span class="badge bg-dark border border-secondary" th:text="${event.turbineId}">WT-001</span>
+                            </td>
+                            <td>
+                                <span th:class="${event.eventType == 'ALARM'} ? 'badge bg-danger' : 'badge bg-warning text-dark'"
+                                      th:text="${event.eventType}">ALARM</span>
+                            </td>
+                            <td>
+                                <span th:switch="${event.severity}">
+                                    <span th:case="'CRITICAL'" class="badge bg-danger">
+                                        <i class="bi bi-exclamation-triangle-fill me-1"></i>CRITICAL
+                                    </span>
+                                    <span th:case="'HIGH'" class="badge bg-warning text-dark">
+                                        <i class="bi bi-exclamation-circle-fill me-1"></i>HIGH
+                                    </span>
+                                    <span th:case="'MEDIUM'" class="badge bg-info text-dark">MEDIUM</span>
+                                    <span th:case="*" class="badge bg-secondary">LOW</span>
+                                </span>
+                            </td>
+                            <td th:text="${event.message}">메시지</td>
+                            <td><code class="text-info" th:text="${event.parameter}">param</code></td>
+                            <td>
+                                <span th:text="${event.value != null ? #numbers.formatDecimal(event.value,1,1) : '-'}">--</span>
+                                <span class="text-muted small" th:if="${event.threshold != null}">/ <th:block th:text="${event.threshold}"/>°</span>
+                            </td>
+                            <td>
+                                <span th:switch="${event.status}">
+                                    <span th:case="'ACTIVE'" class="ww-status-chip ww-status-active">
+                                        <span class="pulse-dot-sm"></span>ACTIVE
+                                    </span>
+                                    <span th:case="'ACKNOWLEDGED'" class="ww-status-chip ww-status-ack">ACK</span>
+                                    <span th:case="'RESOLVED'" class="ww-status-chip ww-status-resolved">RESOLVED</span>
+                                </span>
+                            </td>
+                            <td class="text-muted small">
+                                <span th:text="${event.occurredAt != null ? #temporals.format(event.occurredAt, 'MM-dd HH:mm') : '--'}">--</span>
+                            </td>
+                            <td sec:authorize="hasAnyRole('ADMIN','OPERATOR')">
+                                <div class="d-flex gap-1" th:if="${event.status == 'ACTIVE'}">
+                                    <button class="btn btn-xs ww-btn-ack" th:onclick="'acknowledgeEvent(' + ${event.id} + ', this)'" title="확인">
+                                        <i class="bi bi-check2"></i>
+                                    </button>
+                                    <button class="btn btn-xs ww-btn-resolve" th:onclick="'resolveEvent(' + ${event.id} + ', this)'" title="해결">
+                                        <i class="bi bi-check2-all"></i>
+                                    </button>
+                                </div>
+                                <span th:if="${event.status != 'ACTIVE'}" class="text-muted small" th:text="${event.resolvedBy ?: '--'}">-</span>
+                            </td>
+                        </tr>
+                        <tr th:if="${#lists.isEmpty(events)}">
+                            <td colspan="10" class="text-center py-5 text-muted">
+                                <i class="bi bi-inbox display-4 d-block mb-3"></i>
+                                조건에 맞는 이벤트가 없습니다
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Pagination -->
+        <div class="ww-card-footer d-flex justify-content-between align-items-center" th:if="${eventPage.totalPages > 1}">
+            <small class="text-muted">
+                페이지 <span th:text="${eventPage.number + 1}">1</span> /
+                <span th:text="${eventPage.totalPages}">1</span>
+                (총 <span th:text="${eventPage.totalElements}">0</span>건)
+            </small>
+            <nav>
+                <ul class="pagination pagination-sm ww-pagination mb-0">
+                    <li class="page-item" th:classappend="${eventPage.first} ? 'disabled'">
+                        <a class="page-link" th:href="@{/events(page=${eventPage.number - 1}, turbineId=${currentTurbineId}, severity=${currentSeverity}, status=${currentStatus}, from=${currentFrom}, to=${currentTo})}">
+                            <i class="bi bi-chevron-left"></i>
+                        </a>
+                    </li>
+                    <th:block th:each="i : ${#numbers.sequence(0, eventPage.totalPages - 1)}" th:if="${eventPage.totalPages <= 10}">
+                        <li class="page-item" th:classappend="${i == eventPage.number} ? 'active'">
+                            <a class="page-link" th:href="@{/events(page=${i}, turbineId=${currentTurbineId}, severity=${currentSeverity}, status=${currentStatus}, from=${currentFrom}, to=${currentTo})}"
+                               th:text="${i + 1}">1</a>
+                        </li>
+                    </th:block>
+                    <li class="page-item" th:classappend="${eventPage.last} ? 'disabled'">
+                        <a class="page-link" th:href="@{/events(page=${eventPage.number + 1}, turbineId=${currentTurbineId}, severity=${currentSeverity}, status=${currentStatus}, from=${currentFrom}, to=${currentTo})}">
+                            <i class="bi bi-chevron-right"></i>
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+        </div>
+    </div>
+
+    <script>
+        function acknowledgeEvent(id, btn) {
+            if (!confirm('이 알람을 확인 처리하겠습니까?')) return;
+            fetch('/events/' + id + '/acknowledge', {
+                method: 'POST',
+                headers: { [getCsrfHeader()]: getCsrfToken() }
+            }).then(r => {
+                if (r.ok) { btn.closest('tr').querySelector('.ww-status-chip').outerHTML = '<span class="ww-status-chip ww-status-ack">ACK</span>'; btn.closest('.d-flex').remove(); showToast('알람이 확인 처리되었습니다.', 'success'); }
+            });
+        }
+
+        function resolveEvent(id, btn) {
+            if (!confirm('이 알람을 해결 처리하겠습니까?')) return;
+            fetch('/events/' + id + '/resolve', {
+                method: 'POST',
+                headers: { [getCsrfHeader()]: getCsrfToken() }
+            }).then(r => {
+                if (r.ok) { btn.closest('tr').querySelector('.ww-status-chip').outerHTML = '<span class="ww-status-chip ww-status-resolved">RESOLVED</span>'; btn.closest('.d-flex').remove(); showToast('알람이 해결 처리되었습니다.', 'success'); }
+            });
+        }
+    </script>
+</section>
+</body>
+</html>

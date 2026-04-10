@@ -1,0 +1,34 @@
+# WindWatch AI-SCADA Python Microservices Requirements
+# Install: pip install -r requirements.txt
+
+# FastAPI & ASGI Server
+fastapi==0.111.0
+uvicorn[standard]==0.30.1
+python-multipart==0.0.9
+
+# HTTP Client
+httpx==0.27.0
+requests==2.32.3
+websockets==12.0
+
+# Data
+pydantic==2.7.2
+numpy==1.26.4
+Pillow==10.3.0
+
+# AI/ML (Optional - comment out if not available)
+# torch==2.3.1
+# torchvision==0.18.1
+# ultralytics==8.2.27  # YOLOv8
+langchain==0.2.5
+langchain-community==0.2.5
+# langchain-openai==0.1.8
+ollama==0.20.5
+
+# STOMP WebSocket (for simulator)
+stomp.py==8.1.0
+
+# Utilities
+python-dotenv==1.0.1
+schedule==1.2.2
+colorlog==6.8.2
